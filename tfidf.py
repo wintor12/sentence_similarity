@@ -12,12 +12,12 @@ n_topics = 60
 # newsgroups_test = fetch_20newsgroups(subset='test',categories = categories)
 newsgroups_train = fetch_20newsgroups(subset='train')
 newsgroups_test = fetch_20newsgroups(subset='test')
+t0 = time()
 vectorizer = TfidfVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
 vectors = vectorizer.fit_transform(newsgroups_train.data)
 vectors_test = vectorizer.transform(newsgroups_test.data)
 print vectors.shape
 
-t0 = time()
 neigh = KNeighborsClassifier(n_neighbors=5)
 neigh.fit(vectors, newsgroups_train.target)
 pred = neigh.predict(vectors_test)
@@ -31,6 +31,9 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import Normalizer
 t0 = time()
+vectorizer = TfidfVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
+vectors = vectorizer.fit_transform(newsgroups_train.data)
+vectors_test = vectorizer.transform(newsgroups_test.data)
 svd = TruncatedSVD(n_topics)
 normalizer = Normalizer(copy=False)
 lsa = make_pipeline(svd, normalizer)
@@ -49,11 +52,11 @@ print("done in %0.3fs" % (time() - t0))
 
 ## Using NMF
 from sklearn.decomposition import NMF
+t0 = time()
 vectorizer = TfidfVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
 vectors = vectorizer.fit_transform(newsgroups_train.data)
 vectors_test = vectorizer.transform(newsgroups_test.data)
 
-t0 = time()
 nmf = NMF(n_components=n_topics, random_state=1, alpha=.1, l1_ratio=.5)
 X = nmf.fit_transform(vectors)
 print X.shape
@@ -69,12 +72,12 @@ print("done in %0.3fs" % (time() - t0))
 
 ## Using bag of words
 from sklearn.feature_extraction.text import CountVectorizer
+t0 = time()
 vectorizer = CountVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
 vectors = vectorizer.fit_transform(newsgroups_train.data)
 vectors_test = vectorizer.transform(newsgroups_test.data)
 print vectors.shape
 
-t0 = time()
 neigh = KNeighborsClassifier(n_neighbors=5)
 neigh.fit(vectors, newsgroups_train.target)
 pred = neigh.predict(vectors_test)
@@ -84,11 +87,11 @@ print("done in %0.3fs" % (time() - t0))
 
 ## Using LDA in bow
 from sklearn.decomposition import LatentDirichletAllocation
+t0 = time()
 vectorizer = CountVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
 vectors = vectorizer.fit_transform(newsgroups_train.data)
 vectors_test = vectorizer.transform(newsgroups_test.data)
 
-t0 = time()
 lda = LatentDirichletAllocation(n_topics=n_topics, max_iter=5,
                                 learning_method='online', learning_offset=50.,
                                 random_state=0)
@@ -103,5 +106,33 @@ pred = neigh.predict(X_test)
 print "LDA result: "
 print metrics.accuracy_score(newsgroups_test.target,pred)
 print("done in %0.3fs" % (time() - t0))
+
+
+## Using word2vec + tfidf
+from gensim.models.word2vec import Word2Vec
+from sklearn.metrics import euclidean_distances
+wv = Word2Vec.load_word2vec_format("/home/tong/Documents/python/GoogleNews-vectors-negative300.bin.gz", binary = True)
+
+t0 = time()
+vectorizer = TfidfVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
+vectors = vectorizer.fit_transform(newsgroups_train.data)
+vectors_test = vectorizer.transform(newsgroups_test.data)
+
+vs = np.zeros((vectors.shape[1],300))
+for word in vectorizer.vocabulary_.keys():
+	if word in wv:
+		vs[vectorizer.vocabulary_[word]] = wv[word]
+
+v = np.zeros((vectors.shape[0], 300))
+vect = vectors.todense()
+v = np.dot(vect,vs)
+vect_test = vectors_test.todense()
+v_test = np.dot(vect_test, vs)
+neigh = KNeighborsClassifier(n_neighbors=5)
+neigh.fit(v, newsgroups_train.target)
+pred = neigh.predict(v_test)
+print metrics.accuracy_score(newsgroups_test.target,pred)
+print("done in %0.3fs" % (time() - t0))
+
 
 
