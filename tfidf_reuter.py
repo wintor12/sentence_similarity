@@ -144,3 +144,42 @@ pred = neigh.predict(v_test)
 print metrics.accuracy_score(test_target,pred)
 print("done in %0.3fs" % (time() - t0))
 
+
+## Using glove + tfidf
+
+import sys, codecs
+
+vector_file = "/home/tong/Documents/python/glove.42B.300d.txt"
+n_words = 1000000
+
+numpy_arrays = []
+labels_array = []
+with codecs.open(vector_file, 'r', 'utf-8') as f:
+	for c, r in enumerate(f):
+		sr = r.split()
+		labels_array.append(sr[0])
+		numpy_arrays.append(np.array([float(i) for i in sr[1:]]) )
+		if c == n_words:
+			break
+
+t0 = time()
+vectorizer = TfidfVectorizer(max_df = 0.95, min_df = 5, stop_words = 'english')
+vectors = vectorizer.fit_transform(train_docs)
+vectors_test = vectorizer.transform(test_docs)
+
+vs = np.zeros((vectors.shape[1],300))
+for word in vectorizer.vocabulary_.keys():
+	if word in labels_array:
+		vs[vectorizer.vocabulary_[word]] = numpy_arrays[labels_array.index(word)]
+
+v = np.zeros((vectors.shape[0], 300))
+vect = vectors.todense()
+v = np.dot(vect,vs)
+vect_test = vectors_test.todense()
+v_test = np.dot(vect_test, vs)
+neigh = KNeighborsClassifier(n_neighbors=5)
+neigh.fit(v, train_target)
+pred = neigh.predict(v_test)
+print metrics.accuracy_score(test_target,pred)
+print("done in %0.3fs" % (time() - t0))
+
